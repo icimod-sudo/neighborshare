@@ -38,6 +38,40 @@ Route::middleware('auth')->group(function () {
 
     // AJAX location update
     Route::post('/profile/location', [ProfileController::class, 'updateLocation'])->name('profile.location.update');
+
+
+
+    // Temporary debug route - remove after testing
+    Route::get('/debug-map-data', function () {
+        $user = Auth::user();
+
+        echo "<h1>Map Data Debug</h1>";
+        echo "<p><strong>User:</strong> {$user->name}</p>";
+        echo "<p><strong>User Location:</strong> {$user->latitude}, {$user->longitude}</p>";
+
+        $products = \App\Models\Product::available()->with('user')->get();
+        echo "<p><strong>Total Available Products:</strong> {$products->count()}</p>";
+
+        echo "<h2>Products with User Locations:</h2>";
+        $productsWithLocation = $products->filter(function ($product) {
+            return $product->user && $product->user->latitude && $product->user->longitude;
+        });
+
+        echo "<p><strong>Products with Location Data:</strong> {$productsWithLocation->count()}</p>";
+
+        foreach ($productsWithLocation as $product) {
+            echo "<p><strong>{$product->title}</strong> - User: {$product->user->name} - Location: {$product->user->latitude}, {$product->user->longitude}</p>";
+        }
+
+        // Test distance calculation
+        if ($user->latitude && $user->longitude) {
+            echo "<h2>Distance Calculation Test:</h2>";
+            foreach ($productsWithLocation->take(3) as $product) {
+                $distance = $product->getDistanceTo($user->latitude, $user->longitude);
+                echo "<p><strong>{$product->title}</strong> - Distance: {$distance}km</p>";
+            }
+        }
+    });
 });
 
 require __DIR__ . '/auth.php';

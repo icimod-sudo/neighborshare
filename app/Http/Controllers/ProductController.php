@@ -39,7 +39,7 @@ class ProductController extends Controller
 
         // If user has location, filter by distance in PHP
         if ($userLatitude && $userLongitude) {
-            $radius = $request->radius ?? 2;
+            $radius = $request->radius ?? 2; // Default to 2km if not specified
 
             $products = $products->filter(function ($product) use ($userLatitude, $userLongitude, $radius) {
                 $distance = $product->getDistanceTo($userLatitude, $userLongitude);
@@ -66,49 +66,126 @@ class ProductController extends Controller
 
     public function map(Request $request)
     {
+        $user = Auth::user();
+        $userLatitude = $user->latitude ?? null;
+        $userLongitude = $user->longitude ?? null;
+
+        $radius = $request->get('radius', 2); // Get radius from request or default to 2km
+
         // Start with base query
         $query = Product::available()->with(['user' => function ($query) {
             $query->select('id', 'name', 'latitude', 'longitude', 'neighborhood');
         }]);
 
-        // Apply filters
-        if ($request->has('category') && $request->category != '') {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->has('search') && $request->search != '') {
-            $query->where('title', 'like', '%' . $request->search . '%');
-        }
-
-        // Get all products
+        // Get all products first
         $products = $query->get();
-
-        // Get user's location
-        $user = Auth::user();
-        $userLatitude = $user->latitude ?? null;
-        $userLongitude = $user->longitude ?? null;
 
         // If user has location, filter by distance
         if ($userLatitude && $userLongitude) {
-            $radius = $request->radius ?? 2;
-
             $products = $products->filter(function ($product) use ($userLatitude, $userLongitude, $radius) {
                 $distance = $product->getDistanceTo($userLatitude, $userLongitude);
 
                 if ($distance === null) {
-                    return false;
+                    return false; // Skip products without location
                 }
 
+                // Add distance to product for display
                 $product->distance = $distance;
+
                 return $distance <= $radius;
             })->sortBy('distance');
+        } else {
+            // If no user location, show all products
+            $products = $products->map(function ($product) {
+                $product->distance = null;
+                return $product;
+            });
         }
 
-        // Generate map markers
-        $mapMarkers = $this->generateMapMarkers($products, $userLatitude, $userLongitude);
+        // Prepare map markers
+        $mapMarkers = [];
+        foreach ($products as $product) {
+            if ($product->user->latitude && $product->user->longitude) {
+                $mapMarkers[] = [
+                    'lat' => $product->user->latitude,
+                    'lon' => $product->user->longitude,
+                    'popup' => $this->getMapPopupContent($product),
+                    'icon' => 'product',
+                    'color' => $product->is_free ? 'green' : 'orange'
+                ];
+            }
+        }
 
-        return view('products.map', compact('products', 'userLatitude', 'userLongitude', 'mapMarkers'));
+        return view('products.map', [
+            'products' => $products,
+            'mapMarkers' => $mapMarkers,
+            'userLatitude' => $userLatitude,
+            'userLongitude' => $userLongitude,
+            'radius' => $radius
+        ]);
     }
+
+    /**
+     * Generate popup content for map markers
+     */
+    private function getMapPopupContent($product)
+    {
+        $image = $product->image ?
+            '<img src="' . asset('storage/' . $product->image) . '" alt="' . $product->title . '" class="w-full h-32 object-cover rounded-t-lg mb-2">' :
+            '<div class="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center mb-2"><span class="text-gray-400 text-2xl">📦</span></div>';
+
+        $price = $product->is_free ?
+            '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">FREE</span>' :
+            '<span class="font-semibold text-blue-600">₹' . $product->price . '</span>';
+
+        $distanceInfo = '';
+        if (isset($product->distance)) {
+            $distanceInfo = '<div class="text-xs text-gray-500 mb-2">📍 ' . number_format($product->distance, 1) . 'km away</div>';
+        }
+
+        return '
+        <div class="w-64">
+            ' . $image . '
+            <div class="p-3">
+                <h4 class="font-semibold text-gray-900 mb-1">' . e($product->title) . '</h4>
+                <p class="text-gray-600 text-sm mb-2">' . e($product->subcategory) . '</p>
+                
+                <div class="flex justify-between items-center text-sm mb-2">
+                    ' . $price . '
+                    <span class="text-gray-500">' . $product->quantity . $product->unit . '</span>
+                </div>
+                
+                ' . $distanceInfo . '
+                
+                <div class="flex justify-between items-center text-xs text-gray-500 mb-3">
+                    <span>By: ' . e($product->user->name) . '</span>
+                </div>
+                
+                <a href="' . route('products.show', $product) . '" 
+                   class="block w-full bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 text-sm">
+                    View Details
+                </a>
+            </div>
+        </div>
+    ';
+    }
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return round($earthRadius * $c, 2);
+    }
+
+
 
     // Helper method to paginate a collection
     private function paginateCollection($items, $perPage = 15, $page = null, $options = [])
@@ -125,42 +202,7 @@ class ProductController extends Controller
         );
     }
 
-    // Generate map markers for products
-    private function generateMapMarkers($products, $userLat = null, $userLon = null)
-    {
-        $markers = [];
 
-        // Add user location marker if available
-        if ($userLat && $userLon) {
-            $markers[] = [
-                'lat' => $userLat,
-                'lon' => $userLon,
-                'title' => 'Your Location',
-                'color' => 'blue',
-                'icon' => 'user',
-                'popup' => 'Your current location'
-            ];
-        }
-
-        // Add product markers
-        foreach ($products as $product) {
-            if ($product->user && $product->user->latitude && $product->user->longitude) {
-                $popupContent = view('components.map-product-popup', compact('product'))->render();
-
-                $markers[] = [
-                    'lat' => $product->user->latitude,
-                    'lon' => $product->user->longitude,
-                    'title' => $product->title,
-                    'color' => $product->is_free ? 'green' : 'orange',
-                    'icon' => 'product',
-                    'popup' => $popupContent,
-                    'product_id' => $product->id
-                ];
-            }
-        }
-
-        return $markers;
-    }
 
     // ... keep other methods the same (create, store, show, etc.)
     public function create()
@@ -248,7 +290,7 @@ class ProductController extends Controller
 
         // If user has location, filter by distance
         if ($userLatitude && $userLongitude) {
-            $radius = $request->radius ?? 2;
+            $radius = $request->radius ?? 2; // Use requested radius or default to 2km
 
             $products = $products->filter(function ($product) use ($userLatitude, $userLongitude, $radius) {
                 $distance = $product->getDistanceTo($userLatitude, $userLongitude);

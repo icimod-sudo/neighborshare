@@ -3,7 +3,9 @@
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Available Products') }}
             @if($userLatitude && $userLongitude)
-            <span class="text-sm font-normal text-green-600 ml-2">📍 Showing products within {{ request('radius', 2) }}km radius</span>
+            <span class="text-sm font-normal text-green-600 ml-2">
+                📍 Showing products within {{ request('radius', 2) }}km radius
+            </span>
             @endif
         </h2>
     </x-slot>
@@ -33,50 +35,112 @@
             </div>
             @endif
 
-            <!-- Simple Filters -->
+            <!-- Filters -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
-                    <div class="flex flex-wrap items-center gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <!-- Category Filter -->
                         <div>
-                            <select onchange="window.location.href=this.value"
-                                class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="{{ route('products.index') }}">All Categories</option>
-                                <option value="{{ route('products.category', 'vegetable') }}"
-                                    {{ request()->is('*category/vegetable') ? 'selected' : '' }}>
-                                    Vegetables
-                                </option>
-                                <option value="{{ route('products.category', 'fruit') }}"
-                                    {{ request()->is('*category/fruit') ? 'selected' : '' }}>
-                                    Fruits
-                                </option>
-                                <option value="{{ route('products.category', 'fmcg') }}"
-                                    {{ request()->is('*category/fmcg') ? 'selected' : '' }}>
-                                    FMCG
-                                </option>
-                                <option value="{{ route('products.category', 'dairy') }}"
-                                    {{ request()->is('*category/dairy') ? 'selected' : '' }}>
-                                    Dairy
-                                </option>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select onchange="updateFilter('category', this.value)"
+                                class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">All Categories</option>
+                                <option value="vegetable" {{ request('category') == 'vegetable' ? 'selected' : '' }}>Vegetables</option>
+                                <option value="fruit" {{ request('category') == 'fruit' ? 'selected' : '' }}>Fruits</option>
+                                <option value="fmcg" {{ request('category') == 'fmcg' ? 'selected' : '' }}>FMCG</option>
+                                <option value="dairy" {{ request('category') == 'dairy' ? 'selected' : '' }}>Dairy</option>
+                                <option value="other" {{ request('category') == 'other' ? 'selected' : '' }}>Other</option>
                             </select>
                         </div>
 
-                        <!-- Map View Button -->
+                        <!-- Radius Filter (Only show if user has location) -->
+                        @if($userLatitude && $userLongitude)
                         <div>
-                            <a href="{{ route('products.map') }}"
-                                class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center">
-                                <span class="mr-2">🗺️</span> Map View
-                            </a>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Search Radius</label>
+                            <select onchange="updateFilter('radius', this.value)"
+                                class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="1" {{ request('radius', 2) == 1 ? 'selected' : '' }}>1 km</option>
+                                <option value="2" {{ request('radius', 2) == 2 ? 'selected' : '' }}>2 km</option>
+                                <option value="5" {{ request('radius', 2) == 5 ? 'selected' : '' }}>5 km</option>
+                                <option value="10" {{ request('radius', 2) == 10 ? 'selected' : '' }}>10 km</option>
+                                <option value="25" {{ request('radius', 2) == 25 ? 'selected' : '' }}>25 km</option>
+                            </select>
+                        </div>
+                        @endif
+
+                        <!-- Free Only Filter -->
+                        <div class="flex items-end">
+                            <div class="flex items-center">
+                                <input type="checkbox" name="free_only" id="free_only" value="1"
+                                    {{ request('free_only') ? 'checked' : '' }}
+                                    onchange="updateFilter('free_only', this.checked ? 1 : '')"
+                                    class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                <label for="free_only" class="ms-2 text-sm text-gray-700">Free Items Only</label>
+                            </div>
                         </div>
 
-                        <!-- Add Product Button -->
-                        <div class="ml-auto">
+                        <!-- Action Buttons -->
+                        <div class="flex items-end justify-end space-x-3">
+                            <a href="{{ route('products.map') }}"
+                                class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center text-sm">
+                                <span class="mr-2">🗺️</span> Map View
+                            </a>
                             <a href="{{ route('products.create') }}"
-                                class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 flex items-center">
+                                class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 flex items-center text-sm">
                                 <span class="mr-2">+</span> List Product
                             </a>
                         </div>
                     </div>
+
+                    <!-- Search Form -->
+                    <div class="mt-4">
+                        <form action="{{ route('products.index') }}" method="GET" class="flex gap-2">
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                class="flex-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Search products...">
+                            <button type="submit"
+                                class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                                Search
+                            </button>
+                            @if(request('search') || request('category') || request('radius') || request('free_only'))
+                            <a href="{{ route('products.index') }}"
+                                class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+                                Clear
+                            </a>
+                            @endif
+                        </form>
+                    </div>
+
+                    <!-- Active Filters -->
+                    @if(request('search') || request('category') || request('free_only') || (request('radius') && request('radius') != 2))
+                    <div class="mt-4 flex items-center flex-wrap gap-2">
+                        <span class="text-sm text-gray-600">Active filters:</span>
+                        @if(request('search'))
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Search: "{{ request('search') }}"
+                            <button onclick="removeFilter('search')" class="ml-1 hover:text-blue-600">×</button>
+                        </span>
+                        @endif
+                        @if(request('category'))
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Category: {{ ucfirst(request('category')) }}
+                            <button onclick="removeFilter('category')" class="ml-1 hover:text-green-600">×</button>
+                        </span>
+                        @endif
+                        @if(request('free_only'))
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Free Items Only
+                            <button onclick="removeFilter('free_only')" class="ml-1 hover:text-purple-600">×</button>
+                        </span>
+                        @endif
+                        @if(request('radius') && request('radius') != 2)
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            Radius: {{ request('radius') }}km
+                            <button onclick="removeFilter('radius')" class="ml-1 hover:text-orange-600">×</button>
+                        </span>
+                        @endif
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -147,7 +211,7 @@
             @else
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-12 text-center">
-                    <div class="text-gray-400 text-6xl mb-4">📦</div>
+                    <div class="text-gray-400 text-6xl mb-4">🔍</div>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No products found</h3>
                     <p class="text-gray-500 mb-4">
                         @if($userLatitude && $userLongitude)
@@ -156,13 +220,56 @@
                         No products available at the moment.
                         @endif
                     </p>
-                    <a href="{{ route('products.create') }}"
-                        class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600">
-                        List Your First Product
-                    </a>
+                    <div class="space-x-4">
+                        @if($userLatitude && $userLongitude)
+                        <a href="{{ route('products.index') }}?radius=5"
+                            class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600">
+                            Increase Search Radius
+                        </a>
+                        @endif
+                        <a href="{{ route('products.create') }}"
+                            class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600">
+                            List a Product
+                        </a>
+                    </div>
                 </div>
             </div>
             @endif
         </div>
     </div>
+
+    <script>
+        // Update filter function
+        function updateFilter(filterName, value) {
+            const url = new URL(window.location.href);
+
+            if (value === '' || value === null) {
+                url.searchParams.delete(filterName);
+            } else {
+                url.searchParams.set(filterName, value);
+            }
+
+            // Remove page parameter when changing filters
+            url.searchParams.delete('page');
+
+            window.location.href = url.toString();
+        }
+
+        // Remove specific filter
+        function removeFilter(filterName) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete(filterName);
+            window.location.href = url.toString();
+        }
+
+        // Handle free_only checkbox specifically
+        document.addEventListener('DOMContentLoaded', function() {
+            const freeOnlyCheckbox = document.getElementById('free_only');
+            if (freeOnlyCheckbox) {
+                freeOnlyCheckbox.addEventListener('change', function() {
+                    updateFilter('free_only', this.checked ? 1 : '');
+                });
+            }
+        });
+    </script>
 </x-app-layout>

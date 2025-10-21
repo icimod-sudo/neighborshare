@@ -40,6 +40,7 @@
 
     <!-- Stack for additional scripts -->
     @stack('scripts')
+    
 </body>
 
 </html>

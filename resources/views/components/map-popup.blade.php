@@ -1,4 +1,4 @@
-<div class="max-w-xs">
+<div class="max-w-xs p-2">
     @if($product->image)
     <img src="{{ asset('storage/' . $product->image) }}"
         alt="{{ $product->title }}"
@@ -31,7 +31,7 @@
     </div>
 
     <a href="{{ route('products.show', $product) }}"
-        class="block w-full bg-blue-500 text-white text-center py-1 rounded text-xs hover:bg-blue-600 transition-colors">
+        class="block w-full bg-blue-500 text-white text-center py-1 rounded text-xs hover:bg-blue-600 transition-colors no-underline">
         View Details
     </a>
 </div>
