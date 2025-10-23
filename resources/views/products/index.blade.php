@@ -47,6 +47,7 @@
                                 <option value="">All Categories</option>
                                 <option value="vegetable" {{ request('category') == 'vegetable' ? 'selected' : '' }}>Vegetables</option>
                                 <option value="fruit" {{ request('category') == 'fruit' ? 'selected' : '' }}>Fruits</option>
+                                <option value="plants" {{ request('category') == 'plants' ? 'selected' : '' }}>Plants</option>
                                 <option value="fmcg" {{ request('category') == 'fmcg' ? 'selected' : '' }}>FMCG</option>
                                 <option value="dairy" {{ request('category') == 'dairy' ? 'selected' : '' }}>Dairy</option>
                                 <option value="other" {{ request('category') == 'other' ? 'selected' : '' }}>Other</option>

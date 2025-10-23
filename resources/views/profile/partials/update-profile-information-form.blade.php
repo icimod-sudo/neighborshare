@@ -158,14 +158,14 @@
 
         // Initialize map
         function initMap() {
-            // Default center (India)
-            const defaultLat = 20.5937;
-            const defaultLon = 78.9629;
+            // Default center (Kathmandu, Nepal)
+            const defaultLat = 27.7172;
+            const defaultLon = 85.3240;
 
             // Use user's location if available, otherwise use default
             const centerLat = userLat || defaultLat;
             const centerLon = userLon || defaultLon;
-            const zoom = userLat ? 13 : 5;
+            const zoom = userLat ? 12 : 5;
 
             // Check if map container exists
             const mapContainer = document.getElementById('location-map');

@@ -19,6 +19,11 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+
+            // Add these admin columns
+            $table->boolean('is_admin')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->integer('total_exchanges')->default(0);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

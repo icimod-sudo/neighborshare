@@ -12,6 +12,26 @@
                     <form method="POST" action="{{ route('products.store') }}" enctype="multipart/form-data">
                         @csrf
 
+                        <!-- Product Status Info -->
+                        <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <span class="text-green-500 text-lg">🟢</span>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-green-800">
+                                        New products are active by default
+                                    </h3>
+                                    <p class="text-sm text-green-700 mt-1">
+                                        Your product will be visible to others immediately after creation.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden field to ensure product is available -->
+                        <input type="hidden" name="is_available" value="1">
+
                         <!-- Basic Information -->
                         <div class="mb-8">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
@@ -30,7 +50,8 @@
                             <!-- Description -->
                             <div class="mb-4">
                                 <label for="description" class="block text-sm font-medium text-gray-700">Description *</label>
-                                <textarea name="description" id="description" rows="3" required
+                                <textarea name="description" id="description" rows="4" required
+                                    placeholder="Describe your product in detail..."
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ old('description') }}</textarea>
                                 @error('description')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -51,6 +72,7 @@
                                         <option value="">Select Category</option>
                                         <option value="vegetable" {{ old('category') == 'vegetable' ? 'selected' : '' }}>Vegetables</option>
                                         <option value="fruit" {{ old('category') == 'fruit' ? 'selected' : '' }}>Fruits</option>
+                                        <option value="plants" {{ old('category') == 'plants' ? 'selected' : '' }}>Plants</option>
                                         <option value="fmcg" {{ old('category') == 'fmcg' ? 'selected' : '' }}>FMCG Products</option>
                                         <option value="dairy" {{ old('category') == 'dairy' ? 'selected' : '' }}>Dairy</option>
                                         <option value="other" {{ old('category') == 'other' ? 'selected' : '' }}>Other</option>
@@ -65,7 +87,7 @@
                                     <label for="subcategory" class="block text-sm font-medium text-gray-700">Specific Item *</label>
                                     <input type="text" name="subcategory" id="subcategory" required
                                         value="{{ old('subcategory') }}"
-                                        placeholder="e.g., Tomatoes, Rice, Milk"
+                                        placeholder="e.g., Tomatoes, Rice, Milk, Bread"
                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                     @error('subcategory')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -170,6 +192,7 @@
                                     @error('expiry_date')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                     @enderror
+                                    <p class="text-xs text-gray-500 mt-1">Leave empty if no expiry date</p>
                                 </div>
 
                                 <!-- Image Upload -->
@@ -180,6 +203,19 @@
                                     @error('image')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                     @enderror
+
+                                    <!-- Image Preview Container -->
+                                    <div id="imagePreviewContainer" class="mt-3 hidden">
+                                        <p class="text-sm text-gray-600 mb-2">Image Preview:</p>
+                                        <div class="relative inline-block">
+                                            <img id="imagePreview" src="#" alt="Preview"
+                                                class="h-32 w-32 object-cover rounded-lg border border-gray-300 shadow-sm">
+                                            <button type="button" id="removeImageBtn"
+                                                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors">
+                                                ×
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -191,8 +227,8 @@
                                 Cancel
                             </a>
                             <button type="submit"
-                                class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition-colors">
-                                List Product
+                                class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition-colors font-medium">
+                                🚀 List Product
                             </button>
                         </div>
                     </form>
@@ -219,5 +255,89 @@
 
         // Set minimum date for expiry date to today
         document.getElementById('expiry_date').min = new Date().toISOString().split('T')[0];
+
+        // Image Preview Functionality
+        document.getElementById('image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+            const removeBtn = document.getElementById('removeImageBtn');
+
+            if (file) {
+                // Check if file is an image
+                if (!file.type.match('image.*')) {
+                    alert('Please select a valid image file (JPEG, PNG, JPG, GIF).');
+                    this.value = '';
+                    return;
+                }
+
+                // Check file size (max 2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Image size should be less than 2MB.');
+                    this.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                }
+
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.classList.add('hidden');
+                preview.src = '#';
+            }
+        });
+
+        // Remove image functionality
+        document.getElementById('removeImageBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('image');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+
+            fileInput.value = '';
+            preview.src = '#';
+            previewContainer.classList.add('hidden');
+        });
+
+        // Initialize on page load to handle form validation errors
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if free checkbox should be checked based on old input
+            const isFreeCheckbox = document.getElementById('is_free');
+            if (isFreeCheckbox.checked) {
+                isFreeCheckbox.dispatchEvent(new Event('change'));
+            }
+
+            // Check if there's an image from form validation errors
+            const fileInput = document.getElementById('image');
+            if (fileInput.files.length > 0) {
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
     </script>
+
+    <style>
+        .transition-colors {
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        #imagePreviewContainer {
+            transition: all 0.3s ease;
+        }
+
+        #removeImageBtn {
+            transition: background-color 0.2s ease;
+        }
+
+        #imagePreview {
+            transition: transform 0.2s ease;
+        }
+
+        #imagePreview:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </x-app-layout>

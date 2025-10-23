@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Traits\LogsActivity;
+
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, LogsActivity;
 
     protected $fillable = [
         'name',
@@ -20,7 +22,9 @@ class User extends Authenticatable
         'longitude',
         'neighborhood',
         'rating',
-        'total_exchanges'
+        'total_exchanges',
+        'is_admin'
+
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -30,6 +34,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
+
         ];
     }
 
@@ -47,6 +53,11 @@ class User extends Authenticatable
     public function receivedExchanges()
     {
         return $this->hasMany(Exchange::class, 'to_user_id');
+    }
+
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class);
     }
 
     // Simple location scope - just check if user has location

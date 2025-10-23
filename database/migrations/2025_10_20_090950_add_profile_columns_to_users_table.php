@@ -15,7 +15,7 @@ return new class extends Migration
             $table->decimal('longitude', 11, 8)->nullable()->after('latitude');
             $table->string('neighborhood')->nullable()->after('longitude');
             $table->integer('rating')->default(5)->after('neighborhood');
-            $table->integer('total_exchanges')->default(0)->after('rating');
+            // $table->integer('total_exchanges')->default(0)->after('rating');
         });
     }
 
@@ -29,7 +29,7 @@ return new class extends Migration
                 'longitude',
                 'neighborhood',
                 'rating',
-                'total_exchanges'
+                // 'total_exchanges'
             ]);
         });
     }

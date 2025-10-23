@@ -125,91 +125,12 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Generate popup content for map markers
-     */
-    private function getMapPopupContent($product)
-    {
-        $image = $product->image ?
-            '<img src="' . asset('storage/' . $product->image) . '" alt="' . $product->title . '" class="w-full h-32 object-cover rounded-t-lg mb-2">' :
-            '<div class="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center mb-2"><span class="text-gray-400 text-2xl">📦</span></div>';
-
-        $price = $product->is_free ?
-            '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">FREE</span>' :
-            '<span class="font-semibold text-blue-600">₹' . $product->price . '</span>';
-
-        $distanceInfo = '';
-        if (isset($product->distance)) {
-            $distanceInfo = '<div class="text-xs text-gray-500 mb-2">📍 ' . number_format($product->distance, 1) . 'km away</div>';
-        }
-
-        return '
-        <div class="w-64">
-            ' . $image . '
-            <div class="p-3">
-                <h4 class="font-semibold text-gray-900 mb-1">' . e($product->title) . '</h4>
-                <p class="text-gray-600 text-sm mb-2">' . e($product->subcategory) . '</p>
-                
-                <div class="flex justify-between items-center text-sm mb-2">
-                    ' . $price . '
-                    <span class="text-gray-500">' . $product->quantity . $product->unit . '</span>
-                </div>
-                
-                ' . $distanceInfo . '
-                
-                <div class="flex justify-between items-center text-xs text-gray-500 mb-3">
-                    <span>By: ' . e($product->user->name) . '</span>
-                </div>
-                
-                <a href="' . route('products.show', $product) . '" 
-                   class="block w-full bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 text-sm">
-                    View Details
-                </a>
-            </div>
-        </div>
-    ';
-    }
-    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
-    {
-        $earthRadius = 6371; // Earth's radius in kilometers
-
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
-
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($dLon / 2) * sin($dLon / 2);
-
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return round($earthRadius * $c, 2);
-    }
-
-
-
-    // Helper method to paginate a collection
-    private function paginateCollection($items, $perPage = 15, $page = null, $options = [])
-    {
-        $page = $page ?: (\Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1);
-        $items = $items instanceof \Illuminate\Support\Collection ? $items : \Illuminate\Support\Collection::make($items);
-
-        return new \Illuminate\Pagination\LengthAwarePaginator(
-            $items->forPage($page, $perPage),
-            $items->count(),
-            $perPage,
-            $page,
-            $options
-        );
-    }
-
-
-
-    // ... keep other methods the same (create, store, show, etc.)
     public function create()
     {
         $categories = [
             'vegetable' => 'Vegetables',
             'fruit' => 'Fruits',
+            'plants' => 'Plants',
             'fmcg' => 'FMCG Products',
             'dairy' => 'Dairy',
             'other' => 'Other'
@@ -253,6 +174,7 @@ class ProductController extends Controller
             'is_free' => $request->is_free ?? false,
             'image' => $imagePath,
             'expiry_date' => $request->expiry_date,
+            'is_available' => true, // Use the existing column
         ]);
 
         return redirect()->route('products.show', $product)
@@ -263,6 +185,94 @@ class ProductController extends Controller
     {
         $product->load('user');
         return view('products.show', compact('product'));
+    }
+
+    public function edit(Product $product)
+    {
+        // Authorization check - user can only edit their own products
+        if ($product->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $categories = [
+            'vegetable' => 'Vegetables',
+            'fruit' => 'Fruits',
+            'plants' => 'Plants',
+            'fmcg' => 'FMCG Products',
+            'dairy' => 'Dairy',
+            'other' => 'Other'
+        ];
+
+        return view('products.edit', compact('product', 'categories'));
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        // Authorization check - user can only update their own products
+        if ($product->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'category' => 'required|string',
+            'subcategory' => 'required|string|max:255',
+            'quantity' => 'required|numeric|min:0.1',
+            'unit' => 'required|string|max:50',
+            'condition' => 'required|in:fresh,good,average,expiring_soon',
+            'price' => 'nullable|numeric|min:0',
+            'is_free' => 'boolean',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'expiry_date' => 'nullable|date|after:today',
+            'is_available' => 'boolean', // Use the existing column
+        ]);
+
+        // Handle image upload
+        $imagePath = $product->image;
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
+            $imagePath = $request->file('image')->store('products', 'public');
+        }
+
+        $product->update([
+            'title' => $request->title,
+            'description' => $request->description,
+            'category' => $request->category,
+            'subcategory' => $request->subcategory,
+            'quantity' => $request->quantity,
+            'unit' => $request->unit,
+            'condition' => $request->condition,
+            'price' => $request->is_free ? null : $request->price,
+            'is_free' => $request->is_free ?? false,
+            'image' => $imagePath,
+            'expiry_date' => $request->expiry_date,
+            'is_available' => $request->has('is_available') ? $request->is_available : $product->is_available,
+        ]);
+
+        return redirect()->route('products.show', $product)
+            ->with('success', 'Product updated successfully!');
+    }
+
+    public function destroy(Product $product)
+    {
+        // Authorization check - user can only delete their own products
+        if ($product->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Delete image if exists
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
+        }
+
+        $product->delete();
+
+        return redirect()->route('products.index')
+            ->with('success', 'Product deleted successfully!');
     }
 
     public function myProducts()
@@ -313,11 +323,93 @@ class ProductController extends Controller
         $categoryNames = [
             'vegetable' => 'Vegetables',
             'fruit' => 'Fruits',
+            'plants' => 'Plants',
             'fmcg' => 'FMCG Products',
             'dairy' => 'Dairy',
             'other' => 'Other'
         ];
 
         return view('products.category', compact('products', 'category', 'categoryNames', 'userLatitude', 'userLongitude'));
+    }
+
+    /**
+     * Generate popup content for map markers
+     */
+    private function getMapPopupContent($product)
+    {
+        $image = $product->image ?
+            '<img src="' . asset('storage/' . $product->image) . '" alt="' . $product->title . '" class="w-full h-32 object-cover rounded-t-lg mb-2">' :
+            '<div class="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center mb-2"><span class="text-gray-400 text-2xl">📦</span></div>';
+
+        $price = $product->is_free ?
+            '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">FREE</span>' :
+            '<span class="font-semibold text-blue-600">₹' . $product->price . '</span>';
+
+        $distanceInfo = '';
+        if (isset($product->distance)) {
+            $distanceInfo = '<div class="text-xs text-gray-500 mb-2">📍 ' . number_format($product->distance, 1) . 'km away</div>';
+        }
+
+        return '
+        <div class="w-64">
+            ' . $image . '
+            <div class="p-3">
+                <h4 class="font-semibold text-gray-900 mb-1">' . e($product->title) . '</h4>
+                <p class="text-gray-600 text-sm mb-2">' . e($product->subcategory) . '</p>
+                
+                <div class="flex justify-between items-center text-sm mb-2">
+                    ' . $price . '
+                    <span class="text-gray-500">' . $product->quantity . $product->unit . '</span>
+                </div>
+                
+                ' . $distanceInfo . '
+                
+                <div class="flex justify-between items-center text-xs text-gray-500 mb-3">
+                    <span>By: ' . e($product->user->name) . '</span>
+                </div>
+                
+                <a href="' . route('products.show', $product) . '" 
+                   class="block w-full bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 text-sm">
+                    View Details
+                </a>
+            </div>
+        </div>
+    ';
+    }
+
+    /**
+     * Calculate distance between two points using Haversine formula
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return round($earthRadius * $c, 2);
+    }
+
+    /**
+     * Helper method to paginate a collection
+     */
+    private function paginateCollection($items, $perPage = 15, $page = null, $options = [])
+    {
+        $page = $page ?: (\Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1);
+        $items = $items instanceof \Illuminate\Support\Collection ? $items : \Illuminate\Support\Collection::make($items);
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $items->forPage($page, $perPage),
+            $items->count(),
+            $perPage,
+            $page,
+            $options
+        );
     }
 }
