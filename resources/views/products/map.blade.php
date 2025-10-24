@@ -71,11 +71,169 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Responsive styles */
+        /* Mobile Responsive Styles */
         @media (max-width: 768px) {
             #map, #mapContainer {
                 height: 400px;
             }
+            
+            .max-w-7xl {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .py-6 {
+                padding-top: 1.5rem;
+                padding-bottom: 1.5rem;
+            }
+            
+            .sm\:px-6 {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .lg\:px-8 {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            /* Header adjustments */
+            .text-xl {
+                font-size: 1.25rem;
+            }
+            
+            /* Map controls responsive */
+            .flex-wrap {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .space-x-4 {
+                gap: 1rem;
+            }
+            
+            .space-x-3 {
+                gap: 0.75rem;
+            }
+            
+            /* Radius filter responsive */
+            .flex.items-center.space-x-4 {
+                flex-wrap: wrap;
+                gap: 0.75rem;
+            }
+            
+            /* Product grid responsive */
+            .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Product card adjustments */
+            .p-4 {
+                padding: 1rem;
+            }
+            
+            .p-6 {
+                padding: 1.5rem;
+            }
+            
+            .p-12 {
+                padding: 2rem;
+            }
+            
+            /* Button responsive */
+            .space-x-4 {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .space-x-4 > * {
+                width: 100%;
+                text-align: center;
+            }
+            
+            /* Text size adjustments */
+            .text-sm {
+                font-size: 0.875rem;
+            }
+            
+            .text-lg {
+                font-size: 1.125rem;
+            }
+            
+            /* Location alert responsive */
+            .bg-yellow-50 .flex {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .bg-yellow-50 .ml-3 {
+                margin-left: 0;
+                margin-top: 0.75rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #map, #mapContainer {
+                height: 350px;
+            }
+            
+            .p-4 {
+                padding: 0.75rem;
+            }
+            
+            .p-6 {
+                padding: 1rem;
+            }
+            
+            .text-xl {
+                font-size: 1.125rem;
+            }
+            
+            .text-lg {
+                font-size: 1rem;
+            }
+            
+            /* Smaller product images on mobile */
+            .h-40 {
+                height: 120px;
+            }
+            
+            /* Compact buttons */
+            .px-4, .px-6 {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            .py-2 {
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+        }
+        
+        /* Ensure flex items wrap properly on mobile */
+        .flex.justify-between {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        /* Improve touch targets for mobile */
+        button, a, select {
+            min-height: 44px;
+        }
+        
+        /* Better spacing for mobile */
+        .mb-6 {
+            margin-bottom: 1.5rem;
+        }
+        
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+        
+        .mt-4 {
+            margin-top: 1rem;
         }
     </style>
     @endpush
@@ -111,11 +269,11 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-4">
                     <div class="flex flex-wrap items-center justify-between gap-4">
-                        <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-4 flex-wrap">
                             <!-- Radius Filter -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Search Radius</label>
-                                <select id="radiusFilter" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <select id="radiusFilter" class="border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 w-full">
                                     <option value="1" {{ $radius == 1 ? 'selected' : '' }}>1 km</option>
                                     <option value="2" {{ $radius == 2 ? 'selected' : '' }}>2 km</option>
                                     <option value="5" {{ $radius == 5 ? 'selected' : '' }}>5 km</option>
@@ -139,13 +297,13 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-3 flex-wrap">
                             <a href="{{ route('products.index') }}?radius={{ $radius }}"
-                                class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors">
+                                class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors text-center min-h-[44px] flex items-center justify-center">
                                 List View
                             </a>
                             <a href="{{ route('products.create') }}"
-                                class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                                class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors text-center min-h-[44px] flex items-center justify-center">
                                 + List Product
                             </a>
                         </div>
@@ -157,7 +315,7 @@
                         <span class="text-sm text-gray-600">Active filters:</span>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                             Radius: {{ $radius }}km
-                            <button onclick="removeFilter('radius')" class="ml-1 hover:text-orange-600">×</button>
+                            <button onclick="removeFilter('radius')" class="ml-1 hover:text-orange-600 min-h-[20px]">×</button>
                         </span>
                         <a href="{{ route('products.map') }}" 
                            class="text-sm text-blue-600 hover:text-blue-900 ml-2">
@@ -190,7 +348,7 @@
                                 <div class="text-red-500 text-4xl mb-2">❌</div>
                                 <h3 class="text-lg font-medium text-red-800 mb-2">Failed to load map</h3>
                                 <p class="text-red-600 mb-4">Please check your internet connection and try again.</p>
-                                <button onclick="initializeMap()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                                <button onclick="initializeMap()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 min-h-[44px]">
                                     Retry
                                 </button>
                             </div>
@@ -226,16 +384,16 @@
                             <h4 class="font-semibold text-gray-900 mb-1">{{ $product->title }}</h4>
                             <p class="text-gray-600 text-sm mb-2">{{ $product->subcategory }}</p>
 
-                            <div class="flex justify-between items-center text-sm mb-2">
+                            <div class="flex justify-between items-center text-sm mb-2 flex-wrap gap-2">
                                 @if($product->is_free)
                                 <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">FREE</span>
                                 @else
-                                <span class="font-semibold text-blue-600">₹{{ $product->price }}</span>
+                                <span class="font-semibold text-blue-600">रू {{ $product->price }}</span>
                                 @endif
-                                <span class="text-gray-500">{{ $product->quantity }}{{ $product->unit }}</span>
+                                <span class="text-gray-500">{{ $product->quantity }} {{ $product->unit }}</span>
                             </div>
 
-                            <div class="flex justify-between items-center text-xs text-gray-500 mb-3">
+                            <div class="flex justify-between items-center text-xs text-gray-500 mb-3 flex-wrap gap-2">
                                 <span>By: {{ $product->user->name }}</span>
                                 @if(isset($product->distance))
                                 <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -247,7 +405,7 @@
                             </div>
 
                             <a href="{{ route('products.show', $product) }}"
-                                class="block w-full bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 text-sm">
+                                class="block w-full bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 text-sm min-h-[44px] flex items-center justify-center">
                                 View Details
                             </a>
                         </div>
@@ -267,19 +425,19 @@
                         No products available at the moment.
                         @endif
                     </p>
-                    <div class="space-x-4">
+                    <div class="space-x-4 flex flex-col md:flex-row gap-3">
                         @if($userLatitude && $userLongitude)
                         <button onclick="updateRadius(5)" 
-                                class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600">
+                                class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 min-h-[44px]">
                             Try 5km Radius
                         </button>
                         <button onclick="updateRadius(10)" 
-                                class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600">
+                                class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 min-h-[44px]">
                             Try 10km Radius
                         </button>
                         @endif
                         <a href="{{ route('products.create') }}"
-                            class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600">
+                            class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 min-h-[44px] flex items-center justify-center">
                             List a Product
                         </a>
                     </div>

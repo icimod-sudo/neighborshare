@@ -14,6 +14,13 @@
             </div>
             @endif
 
+            <!-- Error Message -->
+            @if(session('error'))
+            <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                {{ session('error') }}
+            </div>
+            @endif
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -46,9 +53,22 @@
                                         FREE
                                     </span>
                                     @else
-                                    <span class="text-3xl font-bold text-blue-600">₹{{ $product->price }}</span>
+                                    <span class="text-3xl font-bold text-blue-600">रू {{ $product->price }}</span>
                                     @endif
                                     <span class="text-lg text-gray-600">{{ $product->quantity }} {{ $product->unit }}</span>
+                                </div>
+
+                                <!-- Stock Status -->
+                                <div class="mb-4">
+                                    <span class="text-sm font-medium 
+                                        @if($product->stock_status_color === 'green') text-green-600
+                                        @elseif($product->stock_status_color === 'yellow') text-yellow-600
+                                        @else text-red-600 @endif">
+                                        {{ $product->stock_status }}
+                                        @if($product->is_in_stock)
+                                        ({{ $product->available_quantity }} {{ $product->unit }} available)
+                                        @endif
+                                    </span>
                                 </div>
                             </div>
 
@@ -105,6 +125,12 @@
                                         </span>
                                     </p>
                                 </div>
+                                <div>
+                                    <span class="font-medium text-gray-500">Stock:</span>
+                                    <p class="text-gray-900 font-semibold">
+                                        {{ $product->available_quantity }} {{ $product->unit }}
+                                    </p>
+                                </div>
                             </div>
 
                             <!-- Seller Information -->
@@ -133,17 +159,17 @@
                                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                         <p class="text-blue-800 text-sm font-medium">This is your listed product.</p>
 
-                                        <!-- Status Toggle -->
-                                        <form method="POST" action="{{ route('products.update', $product) }}" class="mt-3">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="hidden" name="is_available" value="{{ $product->is_available ? '0' : '1' }}">
-                                            <button type="submit"
-                                                onclick="return confirm('Are you sure you want to {{ $product->is_available ? 'mark as unavailable' : 'mark as available' }} this product?')"
-                                                class="w-full {{ $product->is_available ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600' }} text-white py-2 px-4 rounded-md transition-colors font-medium">
-                                                {{ $product->is_available ? '⏸️ Mark as Unavailable' : '▶️ Mark as Available' }}
-                                            </button>
-                                        </form>
+                                        @if(Auth::id() === $product->user_id)
+                                        <!-- Add this to your existing action buttons -->
+                                        <div class="mt-4">
+                                            <a href="{{ route('products.share', $product) }}"
+                                                class="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md transition-colors font-medium flex items-center justify-center space-x-2">
+                                                <i class="fas fa-qrcode"></i>
+                                                <span>Share Product QR</span>
+                                            </a>
+                                        </div>
+                                        @endif
+
                                     </div>
 
                                     <!-- Edit and Delete Buttons -->
@@ -176,12 +202,43 @@
                                         </a>
                                     </div>
                                 </div>
-                                @elseif($product->is_available)
+
+                                @elseif($product->is_available && $product->is_in_stock)
+                                <!-- Add this before or after the exchange request form -->
+                                <div class="mb-4 text-center">
+                                    <a href="{{ route('products.share', $product) }}"
+                                        class="inline-flex items-center space-x-2 text-purple-600 hover:text-purple-800 font-medium">
+                                        <i class="fas fa-qrcode"></i>
+                                        <span>Share this product with friends</span>
+                                    </a>
+                                </div>
                                 <!-- Exchange Request Form -->
                                 <form method="POST" action="{{ route('exchanges.store', $product) }}" class="space-y-4">
                                     @csrf
 
                                     <h3 class="text-lg font-semibold text-gray-900">Request this Item</h3>
+
+                                    <!-- Requested Quantity -->
+                                    <div>
+                                        <label for="requested_quantity" class="block text-sm font-medium text-gray-700 mb-1">
+                                            Quantity (Available: {{ $product->available_quantity }} {{ $product->unit }}) *
+                                        </label>
+                                        <input type="number"
+                                            name="requested_quantity"
+                                            id="requested_quantity"
+                                            min="0.01"
+                                            max="{{ $product->available_quantity }}"
+                                            step="0.01"
+                                            value="{{ old('requested_quantity', 1) }}"
+                                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            required>
+                                        @error('requested_quantity')
+                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                        @enderror
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            Maximum available: {{ $product->available_quantity }} {{ $product->unit }}
+                                        </p>
+                                    </div>
 
                                     <!-- Message -->
                                     <div>
@@ -212,7 +269,7 @@
                                                 <input type="radio" name="type" id="type_paid" value="paid"
                                                     {{ old('type', 'paid') == 'paid' ? 'checked' : '' }} class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
                                                 <label for="type_paid" class="ml-2 text-sm text-gray-700">
-                                                    Pay ₹{{ $product->price }}
+                                                    Pay रू{{ $product->price }}
                                                 </label>
                                             </div>
                                             <div class="flex items-center">
@@ -232,7 +289,7 @@
                                     <!-- Offer Price (for barter) -->
                                     <div id="offerPriceSection" class="hidden">
                                         <label for="offer_price" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Your Offer (₹)
+                                            Your Offer (रू)
                                         </label>
                                         <input type="number" name="offer_price" id="offer_price" step="0.01" min="0"
                                             value="{{ old('offer_price') }}"
@@ -257,6 +314,8 @@
                                         @enderror
                                     </div>
 
+
+
                                     <button type="submit"
                                         class="w-full bg-green-500 text-white py-3 rounded-md hover:bg-green-600 font-semibold transition-colors duration-200">
                                         📨 Send Exchange Request
@@ -266,17 +325,24 @@
                                         By sending this request, you agree to coordinate the exchange details with the seller.
                                     </p>
                                 </form>
-                                @else
+                                @elseif(!$product->is_available || !$product->is_in_stock)
                                 <div class="bg-gray-100 border border-gray-300 rounded-lg p-6 text-center">
                                     <div class="text-gray-400 text-4xl mb-2">🔒</div>
-                                    <p class="text-gray-600 font-medium mb-2">This item is no longer available</p>
-                                    <p class="text-gray-500 text-sm">This product has been marked as unavailable by the seller.</p>
+                                    <p class="text-gray-600 font-medium mb-2">This item is not available</p>
+                                    <p class="text-gray-500 text-sm">
+                                        @if(!$product->is_available)
+                                        This product has been marked as unavailable by the seller.
+                                        @elseif(!$product->is_in_stock)
+                                        This product is currently out of stock.
+                                        @endif
+                                    </p>
 
                                     <!-- Suggest similar available products -->
                                     @php
                                     $similarProducts = App\Models\Product::where('category', $product->category)
                                     ->where('id', '!=', $product->id)
                                     ->where('is_available', true)
+                                    ->where('quantity', '>', 0)
                                     ->take(3)
                                     ->get();
                                     @endphp
@@ -288,7 +354,7 @@
                                             @foreach($similarProducts as $similar)
                                             <a href="{{ route('products.show', $similar) }}"
                                                 class="block text-blue-600 hover:text-blue-800 text-sm">
-                                                • {{ $similar->title }} - {{ $similar->is_free ? 'FREE' : '₹'.$similar->price }}
+                                                • {{ $similar->title }} - {{ $similar->is_free ? 'FREE' : 'रू'.$similar->price }}
                                             </a>
                                             @endforeach
                                         </div>
@@ -313,6 +379,7 @@
                         $sellerProducts = App\Models\Product::where('user_id', $product->user_id)
                         ->where('id', '!=', $product->id)
                         ->where('is_available', true)
+                        ->where('quantity', '>', 0)
                         ->take(4)
                         ->get();
                         @endphp
@@ -336,9 +403,18 @@
                                     @if($relatedProduct->is_free)
                                     <span class="bg-green-100 text-green-800 px-2 py-1 rounded">FREE</span>
                                     @else
-                                    <span class="font-semibold text-blue-600">₹{{ $relatedProduct->price }}</span>
+                                    <span class="font-semibold text-blue-600">रू{{ $relatedProduct->price }}</span>
                                     @endif
                                     <span class="text-gray-500">{{ $relatedProduct->quantity }}{{ $relatedProduct->unit }}</span>
+                                </div>
+                                <!-- Stock Status Badge -->
+                                <div class="mt-2">
+                                    <span class="text-xs font-medium 
+                                        @if($relatedProduct->stock_status_color === 'green') text-green-600
+                                        @elseif($relatedProduct->stock_status_color === 'yellow') text-yellow-600
+                                        @else text-red-600 @endif">
+                                        {{ $relatedProduct->stock_status }}
+                                    </span>
                                 </div>
                             </a>
                             @endforeach
@@ -348,6 +424,8 @@
                         @endif
                     </div>
                     @endif
+
+
                 </div>
             </div>
         </div>
@@ -357,6 +435,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
             const offerSection = document.getElementById('offerPriceSection');
+            const quantityInput = document.getElementById('requested_quantity');
 
             function toggleOfferSection() {
                 const selectedType = document.querySelector('input[name="type"]:checked');
@@ -370,9 +449,29 @@
                 }
             }
 
+            // Validate quantity input
+            function validateQuantity() {
+                const maxQuantity = parseFloat(quantityInput.getAttribute('max'));
+                const currentQuantity = parseFloat(quantityInput.value);
+
+                if (currentQuantity > maxQuantity) {
+                    quantityInput.value = maxQuantity;
+                    alert(`Maximum available quantity is ${maxQuantity} {{ $product->unit }}`);
+                }
+
+                if (currentQuantity <= 0) {
+                    quantityInput.value = 0.01;
+                }
+            }
+
             typeRadios.forEach(radio => {
                 radio.addEventListener('change', toggleOfferSection);
             });
+
+            if (quantityInput) {
+                quantityInput.addEventListener('change', validateQuantity);
+                quantityInput.addEventListener('blur', validateQuantity);
+            }
 
             // Initialize on page load
             toggleOfferSection();
@@ -382,10 +481,20 @@
             if (form) {
                 form.addEventListener('submit', function(e) {
                     const message = document.getElementById('message').value.trim();
+                    const quantity = document.getElementById('requested_quantity').value;
+
                     if (!message) {
                         e.preventDefault();
                         alert('Please enter a message for the seller.');
                         document.getElementById('message').focus();
+                        return;
+                    }
+
+                    if (!quantity || quantity <= 0) {
+                        e.preventDefault();
+                        alert('Please enter a valid quantity.');
+                        document.getElementById('requested_quantity').focus();
+                        return;
                     }
                 });
             }

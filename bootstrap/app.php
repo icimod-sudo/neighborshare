@@ -14,6 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register your middleware aliases here
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'suspended' => \App\Http\Middleware\CheckSuspended::class,
+            'track.activity' => \App\Http\Middleware\TrackUserActivity::class,
+        ]);
+
+        // Add activity tracking to web middleware group
+        $middleware->web(append: [
+            \App\Http\Middleware\TrackUserActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

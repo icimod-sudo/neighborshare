@@ -4,23 +4,21 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ExchangeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
-
+use App\Http\Controllers\QrCodeController;
+use App\Models\Product;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-
-
-
-
-
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+// Apply suspension middleware to all authenticated routes
+Route::middleware(['auth', 'suspended'])->group(function () {
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -48,7 +46,6 @@ Route::middleware('auth')->group(function () {
 
     // AJAX location update
     Route::post('/profile/location', [ProfileController::class, 'updateLocation'])->name('profile.location.update');
-
 
     // Exchange routes
     Route::get('/exchanges/count', [ExchangeController::class, 'getExchangesCount'])->name('exchanges.count');
@@ -110,33 +107,85 @@ Route::middleware('auth')->group(function () {
         return view('dashboard', compact('stats', 'featuredProducts', 'pendingExchangesCount'));
     })->middleware(['auth', 'verified'])->name('dashboard');
 
+    // Admin Routes - Add suspended middleware here too
+    Route::prefix('admin')->middleware(['auth', 'admin', 'suspended'])->group(function () {
 
-    // Admin Routes
-    Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
-        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-        Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+
+        // Product Management Routes
         Route::get('/products', [AdminController::class, 'products'])->name('admin.products');
+
+        // Product Restoration Routes - Make sure these are defined
+        Route::post('/products/{product}/restore', [AdminController::class, 'restoreProduct'])->name('admin.products.restore');
+        Route::delete('/products/{product}/force-delete', [AdminController::class, 'forceDeleteProduct'])->name('admin.products.force-delete');
+
+        // Deleted Products View
+        Route::get('/deleted-products', [AdminController::class, 'deletedProducts'])->name('admin.deleted-products');
+        // Add this route inside your admin group in web.php
+        Route::delete('/users/{user}/force-delete', [AdminController::class, 'forceDeleteUser'])->name('admin.users.force-delete');
+
+        // Dashboard
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+
+        // Deleted Products Management
+        Route::get('/deleted-products', [AdminController::class, 'deletedProducts'])->name('admin.deleted-products');
+        // Product Restoration Routes
+        Route::post('/products/{product}/restore', [AdminController::class, 'restoreProduct'])->name('admin.products.restore');
+        Route::delete('/products/{product}/force-delete', [AdminController::class, 'forceDeleteProduct'])->name('admin.products.force-delete');
+        Route::get('/products/{product}/details', [AdminController::class, 'getProductDetails'])->name('admin.products.details');
+
+        Route::get('/user-activities', [AdminController::class, 'userActivities'])->name('admin.user-activities');
+        // User Management
+        Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+        Route::get('/users/{user}', [AdminController::class, 'userDetail'])->name('admin.users.detail');
+        Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('admin.users.toggle-status');
+        Route::post('/users/{user}/suspend', [AdminController::class, 'suspendUser'])->name('admin.users.suspend');
+        Route::post('/users/{user}/unsuspend', [AdminController::class, 'unsuspendUser'])->name('admin.users.unsuspend');
+        Route::post('/users/{user}/ban', [AdminController::class, 'banUser'])->name('admin.users.ban');
+        Route::post('/users/{user}/restore', [AdminController::class, 'restoreUser'])->name('admin.users.restore');
+        Route::post('/users/{user}/strike', [AdminController::class, 'addStrike'])->name('admin.users.add-strike');
+        Route::post('/users/{user}/remove-strike', [AdminController::class, 'removeStrike'])->name('admin.users.remove-strike');
+        Route::post('/users/{user}/fraud-flag', [AdminController::class, 'addFraudFlag'])->name('admin.users.add-fraud-flag');
+
+        // Bulk Actions
+        Route::post('/users/bulk-action', [AdminController::class, 'bulkUserAction'])->name('admin.users.bulk-action');
+
+        // Products
+        Route::get('/products', [AdminController::class, 'products'])->name('admin.products');
+        Route::post('/products/{product}/toggle-status', [AdminController::class, 'toggleProductStatus'])->name('admin.products.toggle-status');
+        Route::post('/products/{product}/restore', [AdminController::class, 'restoreProduct'])->name('admin.products.restore');
+
+        // Exchanges
         Route::get('/exchanges', [AdminController::class, 'exchanges'])->name('admin.exchanges');
+        Route::post('/exchanges/{exchange}/update-status', [AdminController::class, 'updateExchangeStatus'])->name('admin.exchanges.update-status');
+
+        // Activity Logs
         Route::get('/activity-logs', [AdminController::class, 'activityLogs'])->name('admin.activity-logs');
 
-        // User Management
-        Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('admin.users.toggle-status');
-        Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
+        // Fraud Management
+        Route::get('/high-risk-users', [AdminController::class, 'highRiskUsers'])->name('admin.high-risk-users');
+        Route::get('/fraud-reports', [AdminController::class, 'fraudReports'])->name('admin.fraud-reports');
 
-        // Product Management
-        Route::post('/products/{product}/toggle-status', [AdminController::class, 'toggleProductStatus'])->name('admin.products.toggle-status');
-        Route::delete('/products/{product}', [AdminController::class, 'deleteProduct'])->name('admin.products.delete');
+        // Deleted Data
+        Route::get('/deleted-users', [AdminController::class, 'deletedUsers'])->name('admin.deleted-users');
+        Route::get('/deleted-products', [AdminController::class, 'deletedProducts'])->name('admin.deleted-products');
 
-        // Exchange Management
-        Route::post('/exchanges/{exchange}/update-status', [AdminController::class, 'updateExchangeStatus'])->name('admin.exchanges.update-status');
+        // User History
+        Route::get('/users/{user}/complete-history', [AdminController::class, 'userCompleteHistory'])->name('admin.users.complete-history');
     });
+
+
+
+
+
 
     Route::get('/offline', function () {
         return view('offline');
     });
 
-
-
+    // QR Code Routes
+    Route::get('/products/{product}/share', [QrCodeController::class, 'shareProduct'])->name('products.share');
+    Route::get('/products/{product}/qr', [QrCodeController::class, 'generateProductQr'])->name('qr.product.generate');
+    Route::get('/products/{product}/qr/download/{type?}', [QrCodeController::class, 'downloadProductQr'])->name('qr.product.download');
 });
 
 require __DIR__ . '/auth.php';

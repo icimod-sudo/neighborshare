@@ -166,7 +166,7 @@
 
                             <!-- Price Input (hidden if free) -->
                             <div id="priceSection" class="{{ old('is_free') ? 'hidden' : '' }}">
-                                <label for="price" class="block text-sm font-medium text-gray-700">Price (₹)</label>
+                                <label for="price" class="block text-sm font-medium text-gray-700">Price (रू)</label>
                                 <input type="number" name="price" id="price" step="0.01" min="0"
                                     value="{{ old('price') }}"
                                     placeholder="0.00"

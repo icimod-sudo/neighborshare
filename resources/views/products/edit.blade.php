@@ -266,14 +266,6 @@
                         <div class="mb-8">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Product Visibility</h3>
                             <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center mb-3">
-                                    <input type="checkbox" name="is_active" id="is_active" value="1"
-                                        {{ old('is_active', $product->is_active) ? 'checked' : '' }}
-                                        class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                                    <label for="is_active" class="ms-2 text-sm font-medium text-gray-700">
-                                        Make this product active and visible to others
-                                    </label>
-                                </div>
                                 <div class="text-xs text-gray-600 space-y-1">
                                     <p>✅ <strong>Active:</strong> Product appears in search results and can be requested</p>
                                     <p>❌ <strong>Inactive:</strong> Product is hidden from everyone except you</p>

@@ -26,6 +26,9 @@ class DashboardController extends Controller
 
         // Calculate browse-focused statistics
         $stats = [
+
+            // In your DashboardController, add this to the stats array
+            'qr_codes_generated' => \App\Models\Product::where('user_id', $user->id)->count(), // Or track actual QR usage
             // Total available products in the system
             'total_available_products' => Product::where('is_available', true)->count(),
 
@@ -56,6 +59,7 @@ class DashboardController extends Controller
         $pendingExchangesCount = Exchange::where('to_user_id', $user->id)
             ->where('status', 'pending')
             ->count();
+
 
         // Debug output (remove this in production)
         // \Log::info('Dashboard Stats', $stats);

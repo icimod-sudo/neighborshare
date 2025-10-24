@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Notifications\ExchangeRequestNotification;
 use App\Notifications\ExchangeAcceptedNotification;
 use App\Notifications\ExchangeCompletedNotification;
-use App\Notifications\ExchangeCancelledNotification; // Add this import
+use App\Notifications\ExchangeCancelledNotification;
 
 class ExchangeController extends Controller
 {
@@ -26,10 +26,19 @@ class ExchangeController extends Controller
             'message' => 'required|string|max:500',
             'type' => 'required|in:free,paid,barter',
             'offer_price' => 'nullable|numeric|min:0',
-            'contact_info' => 'required|string|max:255'
+            'contact_info' => 'required|string|max:255',
+            'requested_quantity' => 'required|numeric|min:0.01|max:' . $product->quantity // Add quantity validation
         ]);
 
-        // ... existing validation ...
+        // Check if product has sufficient stock
+        if (!$product->hasSufficientStock($request->requested_quantity)) {
+            return back()->with('error', 'Insufficient stock. Only ' . $product->available_quantity . ' ' . $product->unit . ' available.');
+        }
+
+        // Prevent users from requesting their own products
+        if ($product->user_id === Auth::id()) {
+            return back()->with('error', 'You cannot request your own product.');
+        }
 
         $exchange = Exchange::create([
             'product_id' => $product->id,
@@ -39,6 +48,7 @@ class ExchangeController extends Controller
             'agreed_price' => $request->offer_price,
             'message' => $request->message,
             'contact_info' => $request->contact_info,
+            'requested_quantity' => $request->requested_quantity, // Add requested quantity
             'status' => 'pending',
             'exchange_date' => now()->addHours(24),
         ]);
@@ -70,28 +80,25 @@ class ExchangeController extends Controller
             return back()->with('error', 'This exchange request is no longer pending.');
         }
 
-        $exchange->update([
-            'status' => 'accepted',
-            'exchange_date' => now()->addDays(1) // Give 24 hours to complete
-        ]);
+        // Use stock management method
+        if ($exchange->acceptWithStockManagement()) {
+            // Reject all other pending requests for the same product
+            Exchange::where('product_id', $exchange->product_id)
+                ->where('id', '!=', $exchange->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
 
-        // Mark product as unavailable
-        $exchange->product->update(['is_available' => false]);
+            // Send notification to requester
+            $requester = User::find($exchange->from_user_id);
+            $requester->notify(new ExchangeAcceptedNotification($exchange));
 
-        // Reject all other pending requests for the same product
-        Exchange::where('product_id', $exchange->product_id)
-            ->where('id', '!=', $exchange->id)
-            ->where('status', 'pending')
-            ->update(['status' => 'cancelled']);
+            // Trigger real-time update for badge (count decreases)
+            $this->broadcastExchangeCountUpdate(Auth::id());
 
-        // Send notification to requester
-        $requester = User::find($exchange->from_user_id);
-        $requester->notify(new ExchangeAcceptedNotification($exchange));
+            return back()->with('success', 'Exchange request accepted! Stock updated. Please coordinate with the requester to complete the exchange.');
+        }
 
-        // Trigger real-time update for badge (count decreases)
-        $this->broadcastExchangeCountUpdate(Auth::id());
-
-        return back()->with('success', 'Exchange request accepted! Please coordinate with the requester to complete the exchange.');
+        return back()->with('error', 'Unable to accept exchange. Product may no longer have sufficient stock.');
     }
 
     public function complete(Exchange $exchange)
@@ -126,12 +133,8 @@ class ExchangeController extends Controller
         $previousStatus = $exchange->status;
         $cancelledBy = Auth::id() === $exchange->from_user_id ? 'requester' : 'provider';
 
-        $exchange->update(['status' => 'cancelled']);
-
-        // If the exchange was accepted, make the product available again
-        if ($previousStatus === 'accepted') {
-            $exchange->product->update(['is_available' => true]);
-        }
+        // Use stock management method
+        $exchange->cancelWithStockManagement();
 
         // Send notification to the other user
         $otherUserId = Auth::id() === $exchange->from_user_id ? $exchange->to_user_id : $exchange->from_user_id;
@@ -145,9 +148,31 @@ class ExchangeController extends Controller
 
         $message = $previousStatus === 'pending'
             ? 'Exchange request cancelled.'
-            : 'Exchange cancelled.';
+            : 'Exchange cancelled.' . ($previousStatus === 'accepted' ? ' Stock has been returned.' : '');
 
         return back()->with('success', $message);
+    }
+
+    public function reject(Exchange $exchange)
+    {
+        if ($exchange->to_user_id !== Auth::id()) {
+            return back()->with('error', 'Unauthorized action.');
+        }
+
+        if ($exchange->status !== 'pending') {
+            return back()->with('error', 'This exchange request is no longer pending.');
+        }
+
+        $exchange->update(['status' => 'rejected']);
+
+        // Send notification to requester
+        $requester = User::find($exchange->from_user_id);
+        $requester->notify(new ExchangeCancelledNotification($exchange, 'provider'));
+
+        // Trigger real-time update for badge (count decreases)
+        $this->broadcastExchangeCountUpdate(Auth::id());
+
+        return back()->with('success', 'Exchange request rejected.');
     }
 
     public function myExchanges()
@@ -187,23 +212,6 @@ class ExchangeController extends Controller
     }
 
     /**
-     * API endpoint to get current pending exchanges count
-     */
-    // public function getExchangesCount()
-    // {
-    //     if (!Auth::check()) {
-    //         return response()->json(['count' => 0]);
-    //     }
-
-    //     $count = $this->getPendingExchangesCount();
-
-    //     return response()->json([
-    //         'count' => $count,
-    //         'success' => true
-    //     ]);
-    // }
-
-    /**
      * Get pending exchanges count for the authenticated user
      */
     private function getPendingExchangesCount()
@@ -232,14 +240,6 @@ class ExchangeController extends Controller
     {
         // If using Laravel Echo/WebSockets, you would trigger an event here
         // For now, we'll rely on the frontend polling
-
-        // Example WebSocket implementation (uncomment if you have Echo setup):
-        /*
-        event(new \App\Events\ExchangeCountUpdated(
-            $userId,
-            $this->getPendingExchangesCountForUser($userId)
-        ));
-        */
     }
 
     /**
@@ -252,7 +252,6 @@ class ExchangeController extends Controller
             ->count();
     }
 
-    // In ExchangeController
     public function getExchangesCount()
     {
         if (!Auth::check()) {
